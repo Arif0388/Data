@@ -1,151 +1,131 @@
+// ---------------- ReadingScreen ----------------
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:math';
 
-class LoginPageWeb extends StatelessWidget {
-  const LoginPageWeb({super.key});
+class ReadingScreen extends StatefulWidget {
+  const ReadingScreen({super.key});
+
+  @override
+  State<ReadingScreen> createState() => _ReadingScreenState();
+}
+
+class _ReadingScreenState extends State<ReadingScreen> {
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  final FlutterTts _tts = FlutterTts();
+  bool _isListening = false;
+  String _spokenText = "";
+  Map<String, int> _scores = {};
+
+  final String passage =
+      "English is an international language. It helps us to communicate with people across the world.";
+
+  void _startListening() async {
+    bool available = await _speech.initialize();
+    if (available) {
+      setState(() => _isListening = true);
+      _speech.listen(onResult: (result) {
+        setState(() {
+          _spokenText = result.recognizedWords;
+        });
+      });
+    }
+  }
+
+  void _stopListening() {
+    _speech.stop();
+    setState(() => _isListening = false);
+  }
+
+  void _speak() async {
+    await _tts.speak(passage);
+  }
+
+  void _submitAnswer() {
+    int fluency = Random().nextInt(20) + 80;
+    int pronunciation = Random().nextInt(20) + 80;
+    int completeness =
+        (_spokenText.split(" ").length / passage.split(" ").length * 100)
+            .clamp(0, 100)
+            .toInt();
+    int accuracy = Random().nextInt(20) + 80;
+
+    setState(() {
+      _scores = {
+        "Fluency": fluency,
+        "Pronunciation": pronunciation,
+        "Completeness": completeness,
+        "Accuracy": accuracy,
+      };
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
     return Scaffold(
-      body: Row(
-        children: [
-          // Left Side (Images / Banner)
-          Expanded(
-            flex: 2,
-            child: Container(
-              height: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xff9C8DDF), Color(0xff856CF6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 60,
-                    left: 100,
-                    child: Row(
-                      children: [
-                        Text("Future",
-                            style: GoogleFonts.kanit(
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              fontSize: 40,
-                            )),
-                        Text("skill",
-                            style: GoogleFonts.kanit(
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xffDCC2FF),
-                              fontSize: 40,
-                            )),
-                      ],
-                    ),
-                  ),
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: Image.asset(
-                        "assets/images/work_image3.jpg",
-                        width: width / 3,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+      appBar: AppBar(title: const Text("Read Aloud")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Passage:", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text(passage, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 20),
+            Text("You said: $_spokenText", style: const TextStyle(color: Colors.grey)),
 
-          // Right Side (Login Form)
-          Expanded(
-            flex: 3,
-            child: Center(
-              child: Container(
-                width: 400,
-                padding: const EdgeInsets.all(30),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 15,
-                      color: Colors.black12,
-                      offset: Offset(2, 2),
-                    )
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text("Login to your account",
-                        style: GoogleFonts.kanit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 26,
-                            color: const Color(0xff52458B))),
-                    const SizedBox(height: 20),
-                    _buildTextField("Enter Phone Number"),
-                    const SizedBox(height: 15),
-                    Text("OR",
-                        style: GoogleFonts.kanit(
-                            color: const Color(0xff9C8DDF),
-                            fontWeight: FontWeight.w500,
-                            fontSize: 18)),
-                    const SizedBox(height: 15),
-                    _buildTextField("Enter Organization ID"),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text("Forgot Organization ID?",
-                          style: GoogleFonts.poppins(
-                              fontSize: 14, fontWeight: FontWeight.w500)),
-                    ),
-                    const SizedBox(height: 30),
-                    InkWell(
-                      onTap: () {
-                        Get.toNamed("/home"); // navigation
-                      },
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(25),
-                          color: const Color(0xff52458B),
-                        ),
-                        child: Center(
-                          child: Text("LOGIN",
-                              style: GoogleFonts.kanit(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 18)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const Spacer(),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildButton(Icons.mic, _isListening ? "Stop" : "Record", () {
+                  _isListening ? _stopListening() : _startListening();
+                }),
+                _buildButton(Icons.play_arrow, "Listen", _speak),
+                _buildButton(Icons.check, "Submit", _submitAnswer),
+              ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 20),
+            if (_scores.isNotEmpty) _buildResultCard(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTextField(String hint) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: const Color(0xffEEEEEE),
-        border: Border.all(color: const Color(0xffD9D9D9)),
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: hint,
-          border: InputBorder.none,
+  Widget _buildButton(IconData icon, String text, VoidCallback onTap) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: CircleAvatar(radius: 30, child: Icon(icon, size: 30)),
+        ),
+        const SizedBox(height: 8),
+        Text(text),
+      ],
+    );
+  }
+
+  Widget _buildResultCard() {
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: _scores.entries
+              .map((e) => Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(e.key, style: const TextStyle(fontSize: 16)),
+                      Text("${e.value}%",
+                          style: const TextStyle(fontWeight: FontWeight.bold))
+                    ],
+                  ))
+              .toList(),
         ),
       ),
     );
